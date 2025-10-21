@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나를 나타내는 카페 음료 레시피</title>
+<!-- Tone.js 라이브러리 추가 (사운드 효과용) -->
+<script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script> 
+<!-- Noto Sans KR 폰트 추가 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #eef4f9;
+    color: #333;
+    text-align: center;
+    padding: 20px 10px;
+    line-height: 1.6;
+    min-width: 320px;
+  }
+  h1 { 
+    color: #4c77c9; 
+    margin-top: 10px; 
+    font-weight: 700;
+  }
+  h3 {
+    color: #1a499b;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #c9dff7;
+    display: inline-block;
+    padding-bottom: 5px;
+  }
+
+  /* 초기 설정 (이름 입력) */
+  #initial-setup {
+    margin-top: 50px;
+    padding: 30px;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    margin: 50px auto 20px;
+  }
+  #initial-setup input {
+    padding: 10px;
+    margin: 15px 0 5px 0;
+    border: 2px solid #c9dff7;
+    border-radius: 8px;
+    width: 80%;
+    text-align: center;
+    font-size: 1.1em;
+  }
+  #name-error {
+    color: #DC143C;
+    font-size: 0.9em;
+    height: 1.5em; /* 공간 확보 */
+    display: none;
+  }
+  #startBtn {
+    background: #4c77c9;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  #startBtn:hover { background: #3a62a6; }
+
+  /* 메인 게임 영역 */
+  #main-game { display: none; } 
+
+  /* 컵 (유리잔) 스타일 - 클릭 횟수 (최대 10) 시각화 용 */
+  #glass {
+    width: 200px; 
+    height: 300px;
+    margin: 50px auto 20px;
+    border: 5px solid #aaa;
+    border-radius: 10px 10px 50px 50px; /* 둥근 하단 */
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  /* 컵 내부의 액체 영역 (진행 상황 시각화) */
+  #drink-liquid {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 0; /* 시작은 0 */
+    transition: height 0.5s ease-out, background 0.1s;
+    background: #f0f0f0;
+  }
+
+  /* 재료 버튼 */
+  .traits {
+    display: flex; 
+    justify-content: center; 
+    flex-wrap: wrap; 
+    gap: 15px;
+    margin: 30px auto;
+    max-width: 900px;
+  }
+  .trait {
+    width: 180px; 
+    padding: 15px;
+    border-radius: 15px; 
+    color: #fff;
+    cursor: pointer; 
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s, box-shadow 0.1s;
+    text-align: left;
+  }
+  .trait:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  }
+  .trait-name { font-size: 1.1em; margin-bottom: 5px; }
+  .trait p { margin: 3px 0; font-size: 0.9em; }
+  .trait .value-display { font-size: 1.2em; color: black; text-shadow: 1px 1px 2px rgba(255,255,255,0.3); }
+
+  /* 방울 스타일 (크기 확대 및 가시성 개선) */
+  .drop {
+    width: 30px; /* 크기 확대 */
+    height: 30px; /* 크기 확대 */
+    border-radius: 50%;
+    position: absolute;
+    bottom: 0;
+    opacity: 1.0; 
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 2px rgba(0, 0, 0, 0.3); 
+    border: 2px solid rgba(255, 255, 255, 0.8); 
+    animation: floatDrop 2s ease-in-out infinite alternate, 
+               bubble 0.8s ease-out forwards; 
+  }
+  @keyframes floatDrop {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+  }
+  @keyframes bubble {
+    0% { transform: translateY(300px) scale(0.1); opacity: 0.5; } 
+    100% { transform: translateY(0) scale(1.0); opacity: 1.0; }
+  }
+  
+  #createBtn {
+    background: #4c77c9; 
+    color: white; 
+    border: none;
+    padding: 12px 25px; 
+    font-size: 1.2em;
+    border-radius: 8px; 
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background 0.3s, transform 0.3s;
+  }
+  #createBtn:hover { 
+    background: #3a62a6; 
+    transform: translateY(-2px);
+  }
+  #result { 
+    margin-top: 40px; 
+    font-size: 1.1em; 
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    display: none; /* 초기에는 숨김 */
+    max-width: 500px;
+    margin: 40px auto;
+  }
+  .math-expression {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #4c77c9;
+    margin-bottom: 10px;
+  }
+  #final-drink-name {
+    font-size: 2em;
+    font-weight: bold;
+    color: #DC143C;
+    margin: 10px 0 20px;
+  }
+  /* 최종 컵 스타일 */
+  #final-drink-glass {
+    width: 150px;
+    height: 250px;
+    margin: 20px auto;
+    border: 4px solid #aaa;
+    border-radius: 10px 10px 40px 40px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    
+    /* 10층 구조를 위한 설정 */
+    display: flex; 
+    flex-direction: column-reverse; /* 아래부터 채워지도록 */
+  }
+  /* 10층 중 한 층 스타일 (100% / 10 = 10%) */
+  .drink-layer {
+    width: 100%;
+    height: 10%; /* 10칸으로 변경 */
+    transition: background-color 0.5s ease;
+    border-top: 1px solid rgba(255, 255, 255, 0.5); /* 층 경계 */
+  }
+
+  #loading-message {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #4c77c9;
+    margin: 20px 0;
+  }
+  #description {
+    margin-top: 20px;
+    font-style: italic;
+    color: #555;
+    font-weight: normal; /* 볼드체 제거 유지 */
+  }
+</style>
+</head>
+<body>
+
+<h1>🥤 '나'를 나타내는 카페 음료 레시피</h1>
+
+<div id="initial-setup">
+  <h3>🙌 레시피를 만들기 전에 이름을 입력해주세요!</h3>
+  <input type="text" id="userNameInput" placeholder="이름을 입력하세요 (예: 김OO)">
+  <div id="name-error"></div>
+  <button id="startBtn">시작하기</button>
+</div>
+
+
+<div id="main-game">
+  <h2 id="current-user-title"></h2>
+  
+  <div id="glass">
+    <div id="drink-liquid"></div>
+  </div>
+
+  <div class="traits" id="traits">
+    <!-- 특성 버튼들이 여기에 생성됩니다 -->
+  </div>
+  <button id="createBtn">✨ 나만의 음료 만들기</button>
+
+  <div id="result">
+    <!-- 최종 결과가 여기에 표시됩니다 -->
+  </div>
+</div>
+
+
+<script>
+// 재료 데이터를 음료 색상/특성에 맞게 재설정 및 과일 추가
+const traitsData = [
+  { name: "열정", color: "#FF7F50", base: 0.1, value: 0, count: 0, emoji: "🔥", fruit: "딸기" },
+  { name: "꾸준함", color: "#00CED1", base: 0.1, value: 0, count: 0, emoji: "💧", fruit: "민트" }, 
+  { name: "유머", color: "#FFD700", base: 0.1, value: 0, count: 0, emoji: "🤣", fruit: "바나나" }, 
+  { name: "친절함", color: "#32CD32", base: 0.1, value: 0, count: 0, emoji: "😊", fruit: "키위" }, 
+  { name: "집중", color: "#8A2BE2", base: 0.1, value: 0, count: 0, emoji: "💡", fruit: "포도" }, 
+  { name: "에너지", color: "#DC143C", base: 0.1, value: 0, count: 0, emoji: "⚡", fruit: "자두" }
+];
+
+let totalDrops = 0;
+const maxDrops = 10; // 최대 클릭 횟수 (10회)
+let userName = '';
+
+const glass = document.getElementById('glass');
+const drinkLiquid = document.getElementById('drink-liquid');
+const traitsDiv = document.getElementById('traits');
+const resultDiv = document.getElementById('result');
+const mainGame = document.getElementById('main-game');
+const initialSetup = document.getElementById('initial-setup');
+const userNameInput = document.getElementById('userNameInput');
+const startBtn = document.getElementById('startBtn');
+const nameError = document.getElementById('name-error');
+
+// --- 사운드 초기화 (Tone.js 사용) ---
+const dropSynth = new Tone.Synth({
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+}).toDestination();
+
+const doneSynth = new Tone.Synth({
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.05, decay: 0.2, sustain: 0, release: 0.5 }
+}).toDestination();
+// ------------------------------------
+
+
+// --- 초기 설정 및 시작 ---
+startBtn.onclick = () => {
+  const name = userNameInput.value.trim();
+  if (name.length > 0) {
+    if (Tone.context.state !== 'running') {
+        Tone.start();
+    }
+    userName = name;
+    initialSetup.style.display = 'none';
+    mainGame.style.display = 'block';
+    nameError.style.display = 'none';
+    document.getElementById('current-user-title').innerText = `${userName}님의 레시피 재료 투입하기 (남은 방울: ${maxDrops - totalDrops}개)`;
+    renderTraits();
+  } else {
+    nameError.innerText = '이름을 입력해야 시작할 수 있어요!';
+    nameError.style.display = 'block';
+  }
+};
+
+
+function renderTraits() {
+  traitsDiv.innerHTML = '';
+  document.getElementById('current-user-title').innerText = `${userName}님의 레시피 재료 투입하기 (남은 방울: ${maxDrops - totalDrops}개)`;
+
+  traitsData.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'trait';
+    div.style.backgroundColor = t.color;
+    // 소수의 곱셈 교육을 위해 수식이 강조되도록 구조 변경
+    div.innerHTML = `
+      <div class="trait-name">${t.emoji} ${t.name}</div>
+      <p>기본값: ${t.base.toFixed(1)}</p> 
+      <p>클릭 횟수(방울): ${t.count}번</p>
+      <p>총 양: 
+        <span class="value-display">${t.base.toFixed(1)} × ${t.count} = ${(t.base * t.count).toFixed(1)}</span>
+      </p>
+    `;
+    div.onclick = () => addDrop(i);
+    // 최대 횟수 도달 시 클릭 비활성화
+    if (totalDrops >= maxDrops) {
+      div.style.opacity = '0.7';
+      div.onclick = null;
+    }
+    traitsDiv.appendChild(div);
+  });
+}
+
+function addDrop(index) {
+  if (totalDrops >= maxDrops) {
+    renderTraits(); 
+    return;
+  }
+
+  const t = traitsData[index];
+  
+  // 1. 데이터 업데이트
+  totalDrops++;
+  t.count++;
+  t.value = t.base * t.count;
+
+  // 2. 방울 애니메이션
+  const drop = document.createElement('div');
+  drop.className = 'drop';
+  drop.style.backgroundColor = t.color;
+  // 방울 위치를 유리잔 내부에서 랜덤하게 설정 (200px - 30px = 170)
+  const randomX = Math.random() * (170); 
+  drop.style.left = randomX + 'px';
+  glass.appendChild(drop);
+
+  // 3. 액체 높이 증가 (클릭 횟수 기반, 최대 10회)
+  drinkLiquid.style.height = (totalDrops / maxDrops) * 100 + '%';
+  drinkLiquid.style.backgroundColor = t.color; // 마지막 방울 색상으로 임시 표시
+
+  // 4. 사운드 재생
+  dropSynth.triggerAttackRelease("C4", "8n");
+
+  renderTraits();
+}
+
+document.getElementById('createBtn').onclick = () => {
+  if (totalDrops === 0) {
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<p style="color:red; font-weight:bold;">아무 재료도 넣지 않았어요! 레시피를 완성해주세요.</p>';
+    return;
+  }
+
+  // 1. 로딩 메시지 표시
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div id="loading-message">☕ 음료를 제조중입니다...</div>';
+  
+  // 2. 0.5초 후 최종 결과 표시
+  setTimeout(() => {
+    
+    // 현재 데이터 배열 복사 및 총 양 계산
+    const dropsArray = traitsData.map(t => ({ 
+      name: t.name, 
+      color: t.color, 
+      count: t.count,
+      base: t.base, 
+      value: t.value,
+      fruit: t.fruit // 과일 이름 포함
+    }));
+    const totalValue = dropsArray.reduce((sum, d) => sum + d.value, 0);
+
+    // 3. 음료 이름 및 설명 결정
+    const topTraits = dropsArray
+        .filter(t => t.value > 0) 
+        .sort((a, b) => b.value - a.value);
+
+    let drinkName = `${userName} 주스`;
+    let description = "";
+    
+    if (topTraits.length > 0) {
+      const top1Trait = topTraits[0];
+      drinkName = `${userName}의 ${top1Trait.fruit} 주스`; // 과일 이름 사용
+      
+      if (topTraits.length >= 2 && topTraits[1].value > 0 && top1Trait.name !== topTraits[1].name) {
+        const top2Name = topTraits[1].name;
+        // 간결한 설명 문구
+        description = `${top1Trait.name} 와 ${top2Name} 를 가진 당신!`;
+      } else {
+        // 간결한 설명 문구
+        description = `당신은 ${top1Trait.name} 의 특별한 에너지를 가진 분이군요!`;
+      }
+    } else {
+      description = "아직 재료가 없어 맛을 알 수 없습니다. 재료를 넣어주세요.";
+    }
+
+
+    // 4. 10층 레이어 HTML 생성 (Value 기반)
+    // maxLayers를 10으로 변경하고 CSS height도 10%로 변경했습니다.
+    const maxLayers = 10; 
+    
+    let layersHTML = '';
+    const layerColors = [];
+
+    // 1. 각 재료별로 몇 칸을 채워야 하는지 계산하고 색상 배열에 추가
+    dropsArray.forEach(t => {
+        // t.value는 0.1 단위의 값이므로 10을 곱하면 층의 개수(정수)가 됨.
+        const numLayers = Math.round(t.value * 10); 
+        for (let i = 0; i < numLayers; i++) {
+            // 아래부터 채워지므로 순서대로 색상 추가
+            layerColors.push(t.color); 
+        }
+    });
+
+    // 2. 나머지 빈 칸 (채워지지 않은 부분)은 투명하게 처리
+    while(layerColors.length < maxLayers) {
+        layerColors.push('transparent');
+    }
+    
+    // 3. HTML 생성 (10층)
+    for (let i = 0; i < maxLayers; i++) {
+        const color = layerColors[i]; 
+        // height: 10%는 CSS에 정의되어 있음
+        layersHTML += `<div class="drink-layer" style="background-color: ${color};"></div>`;
+    }
+
+    // 5. 최종 결과 표시 HTML
+    const statsList = dropsArray.map(t => 
+      `<li>${t.name}: ${t.base.toFixed(1)} (기본값) × ${t.count} (횟수) = ${t.value.toFixed(1)} (총 양)</li>`
+    ).join('');
+
+    resultDiv.innerHTML = `
+      <h3>✨ 완성된 레시피 ✨</h3>
+      <div id="final-drink-name">${drinkName}</div>
+      
+      <!-- 최종 음료 잔 - 10개 층으로 구성 -->
+      <div id="final-drink-glass">
+        ${layersHTML}
+      </div>
+      
+      <p class="math-expression">총 양 (Total Value): ${totalValue.toFixed(1)}</p>
+      
+      <div id="description" style="font-style: normal; margin-top: 10px; font-weight: normal;">${description}</div>
+      
+      <div style="text-align: left; margin: 20px auto 0; max-width: 300px; font-size:0.9em;">
+        <h4>🍹 재료 상세 계산</h4>
+        <ul style="list-style: none; padding-left: 0;">
+          ${statsList}
+        </ul>
+      </div>
+    `;
+    
+    // 완료 사운드 재생
+    const now = Tone.now();
+    doneSynth.triggerAttackRelease("C4", "8n", now);
+    doneSynth.triggerAttackRelease("E4", "8n", now + 0.1);
+    doneSynth.triggerAttackRelease("G4", "4n", now + 0.2); 
+
+  }, 500); // 0.5초 딜레이
+};
+
+renderTraits();
+</script>
+
+</body>
+</html>
